@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>丸福クエスト～恐竜時代　夢幻ys</title>
+    <style>
+        :root {
+            --border-color: #f0f0f0;
+            --bg-color: #000;
+            --text-color: #f0f0f0;
+            --critical-color: #ffde0a;
+        }
+
+        body {
+            font-family: 'Meiryo', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        #game-container {
+            width: 100%;
+            max-width: 800px;
+            aspect-ratio: 4 / 3;
+            border: 2px solid var(--border-color);
+            background-color: var(--bg-color);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        #battle-screen {
+            flex-grow: 1;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+        }
+
+        #background-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 200%;
+            height: 100%;
+            background-image: url('bg.png');
+            background-size: 200% 400%;
+            image-rendering: pixelated;
+            animation: scroll-background 20s linear infinite;
+            z-index: 1;
+        }
+
+        @keyframes scroll-background {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+
+        #monster {
+            width: 35%;
+            height: 50%;
+            position: absolute;
+            top: 35%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-size: 400% 400%; 
+            background-repeat: no-repeat;
+            image-rendering: pixelated;
+            transition: transform 0.1s ease-in-out, opacity 1.5s;
+            z-index: 3;
+        }
+
+        #player-character {
+           width: 40%;
+           height: 60%;
+           position: absolute;
+           bottom: 25%;
+           left: 50%;
+           transform: translateX(-50%);
+           background-image: url('eb.png');
+           background-size: 400% 400%; 
+           background-position: 0% 0%;
+           background-repeat: no-repeat;
+           image-rendering: pixelated;
+           opacity: 0; 
+           z-index: 4;
+        }
+
+        #ui-container {
+            height: 40%;
+            border-top: 2px solid var(--border-color);
+            display: flex;
+            background-color: var(--bg-color);
+            z-index: 5;
+        }
+
+        #status-window {
+            width: 50%;
+            border-right: 2px solid var(--border-color);
+            padding: 10px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+            font-size: 1rem;
+        }
+        
+        .status-box {
+            border: 2px solid var(--border-color);
+            padding: 8px;
+        }
+        .status-box p {
+            margin: 2px 0;
+            white-space: nowrap;
+        }
+        #item-box p {
+             margin: 4px 0;
+        }
+
+        #command-window {
+            width: 50%;
+            padding: 15px;
+            box-sizing: border-box;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .command-button {
+            background-color: transparent;
+            border: 2px solid var(--border-color);
+            color: var(--text-color);
+            font-family: 'Meiryo', sans-serif;
+            font-size: 1.3rem;
+            padding: 10px;
+            cursor: pointer;
+            text-align: center;
+            position: relative;
+        }
+
+        .command-button:hover:not(:disabled)::before {
+            content: '▶';
+            position: absolute;
+            left: 10px;
+        }
+        
+        .command-button:disabled { color: #555; cursor: not-allowed; }
+        
+        #message-window {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 15px;
+            box-sizing: border-box;
+            background-color: rgba(0, 0, 0, 0.7);
+            border-bottom: 2px solid var(--border-color);
+            font-size: 1.4rem;
+            letter-spacing: 2px;
+            min-height: 4.5em;
+            z-index: 6;
+        }
+        
+        .shake { animation: shake 0.5s; }
+        @keyframes shake {
+            0%,100% { transform: translateX(-50%) translateY(0); }
+            10%,30%,50%,70%,90% { transform: translateX(-50%) translateY(-10px); }
+            20%,40%,60%,80% { transform: translateX(-50%) translateY(10px); }
+        }
+
+        .shake-container-vertical { animation: shake-container-vertical 0.5s; }
+        @keyframes shake-container-vertical {
+            0%,100% { transform: translateY(0); }
+            10%,30%,50%,70%,90% { transform: translateY(-10px); }
+            20%,40%,60%,80% { transform: translateY(10px); }
+        }
+
+        .fade-out { opacity: 0 !important; }
+
+        .victory-flash { animation: victory-flash-anim 0.7s forwards; }
+        @keyframes victory-flash-anim {
+            0%,100% { box-shadow: inset 0 0 0 0 rgba(255, 255, 255, 0); }
+            50% { box-shadow: inset 0 0 200px 100px rgba(255, 255, 255, 0.8); }
+        }
+
+        .damage-popup {
+            position: absolute; font-size: 3rem; font-weight: bold; color: #ff4136;
+            text-shadow: 2px 2px #000; animation: damage-popup-anim 1s forwards;
+            pointer-events: none; z-index: 10;
+        }
+        @keyframes damage-popup-anim {
+            0% { opacity: 1; transform: translate(-50%, 0); }
+            100% { opacity: 0; transform: translate(-50%, -100px); }
+        }
+        
+        .damage-popup.critical {
+            color: var(--critical-color);
+            font-size: 3.5rem;
+            animation: critical-popup-anim 1.5s forwards;
+        }
+        @keyframes critical-popup-anim {
+            0% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+            20% { transform: translate(-50%, -20px) scale(1.5); }
+            100% { opacity: 0; transform: translate(-50%, -120px) scale(0.8); }
+        }
+        
+        #attack-effect {
+            position: absolute; width: 150px; height: 150px;
+            background-image: url('MK01B.png');
+            background-size: 400% 400%;
+            transform: translate(-50%, -50%) scale(1.5);
+            opacity: 0; pointer-events: none; image-rendering: pixelated; z-index: 7;
+        }
+
+        .effect-active { animation: effect-animation 0.6s forwards; }
+        @keyframes effect-animation {
+            0% { opacity: 1; transform: translate(-50%, -50%) scale(0.5); }
+            60% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+        }
+
+        @media (max-width: 600px), (max-height: 500px) {
+            #game-container { border: none; height: 100vh; width: 100vw; aspect-ratio: unset; max-width: none; }
+            #status-window, #command-window { padding: 2vw; gap: 2vw; }
+            .status-box { padding: 1.5vw; }
+            .status-box p, .command-button, #message-window { font-size: 3.5vw; }
+            .command-button { padding: 2vw 1vw; }
+            #message-window { padding: 3vw; min-height: 4.8em; }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="battle-screen">
+            <div id="background-layer"></div>
+            <div id="monster"></div>
+            <div id="player-character"></div>
+            <div id="attack-effect"></div>
+            <div id="message-window"><p id="message-text"></p></div>
+        </div>
+        <div id="ui-container">
+            <div id="status-window">
+                <div class="status-box" id="player-status">
+                    <p>夢幻ys LV:<span id="player-lv">1</span></p>
+                    <p>HP: <span id="player-hp">100</span> / <span id="player-max-hp">100</span></p>
+                    <p>あと <span id="player-exp">20</span> EXP</p>
+                </div>
+                <div class="status-box" id="monster-status">
+                    <p><span id="monster-name">モンスター</span></p>
+                    <p>HP: <span id="monster-hp">80</span></p>
+                </div>
+                 <div class="status-box" id="item-box">
+                    <p>どうぐ</p>
+                    <p>かいふくやく: <span id="potion-count">1</span></p>
+                </div>
+            </div>
+            <div id="command-window">
+                <button class="command-button" id="attack-btn">たたかう</button>
+                <button class="command-button" id="item-btn">どうぐ</button>
+                <button class="command-button" id="run-btn">にげる</button>
+                <div></div> <!-- Placeholder -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // UI Elements
+            const messageText = document.getElementById('message-text');
+            const playerHpSpan = document.getElementById('player-hp');
+            const playerMaxHpSpan = document.getElementById('player-max-hp');
+            const playerLvSpan = document.getElementById('player-lv');
+            const playerExpSpan = document.getElementById('player-exp');
+            const monsterHpSpan = document.getElementById('monster-hp');
+            const monsterNameSpan = document.getElementById('monster-name');
+            const potionCountSpan = document.getElementById('potion-count');
+            const attackBtn = document.getElementById('attack-btn');
+            const runBtn = document.getElementById('run-btn');
+            const itemBtn = document.getElementById('item-btn');
+            const monsterElement = document.getElementById('monster');
+            const battleScreen = document.getElementById('battle-screen');
+            const attackEffectElement = document.getElementById('attack-effect');
+            const backgroundLayer = document.getElementById('background-layer');
+
+            // Game Data
+            const monstersData = [
+                { name: 'T-REX', hp: 150, attack: 25, exp: 50, itemDropChance: 0.3, pos: '0% 0%', image: 'ea.png' },
+                { name: 'トリケラトプス', hp: 120, attack: 18, exp: 35, itemDropChance: 0.2, pos: 'calc(100% / 3) 0%', image: 'ea.png' },
+                { name: 'ミニラプトル', hp: 70, attack: 20, exp: 20, itemDropChance: 0.5, pos: 'calc(200% / 3) 0%', image: 'ea.png' },
+                { name: 'ステゴサウルス', hp: 110, attack: 16, exp: 30, itemDropChance: 0.1, pos: '100% 0%', image: 'ea.png' },
+                { name: 'プテラノドン', hp: 80, attack: 22, exp: 25, itemDropChance: 0.4, pos: '0% calc(200% / 3)', image: 'ea.png' },
+                { name: 'ブルーナイト', hp: 100, attack: 20, exp: 28, itemDropChance: 0.2, pos: '0% 0%', image: 'eb.png' },
+                { name: 'レッドサムライ', hp: 90, attack: 25, exp: 32, itemDropChance: 0.2, pos: 'calc(100% / 3) 0%', image: 'eb.png' },
+                { name: 'ゴールドナイト', hp: 130, attack: 28, exp: 60, itemDropChance: 0.4, pos: 'calc(200% / 3) calc(100% / 3)', image: 'eb.png' },
+                { name: 'デーモンナイト', hp: 140, attack: 30, exp: 70, itemDropChance: 0.5, pos: '100% 100%', image: 'eb.png' },
+            ];
+            
+            const attackEffects = Array.from({ length: 16 }, (_, i) => {
+                const row = Math.floor(i / 4);
+                const col = i % 4;
+                return `${col * 100 / 3}% ${row * 100 / 3}%`;
+            });
+            const backgroundPositions = ['0%', 'calc(100% / 3)', 'calc(200% / 3)', '100%'];
+
+            // Game State
+            let player = { lv: 1, hp: 100, maxHp: 100, attack: 22, exp: 0, nextExp: 20, items: { potion: 1 } };
+            let monster = { hp: 0, maxHp: 0, attack: 0 };
+            let currentMonster;
+            let isPlayerTurn = true, isGameOver = false;
+            let messageQueue = [];
+
+            // --- Core Functions ---
+            function typeMessage(text, callback) {
+                messageText.textContent = '';
+                let i = 0;
+                const typing = () => {
+                    if (i < text.length) {
+                        messageText.textContent += text.charAt(i++);
+                        setTimeout(typing, 40);
+                    } else if (callback) {
+                        setTimeout(callback, 300);
+                    }
+                };
+                typing();
+            }
+            
+            function processMessageQueue() {
+                if (messageQueue.length > 0) {
+                    const { text, callback } = messageQueue.shift();
+                    if (text) {
+                        typeMessage(text, () => {
+                            if (callback) callback();
+                            processMessageQueue();
+                        });
+                    } else {
+                        if (callback) callback();
+                        processMessageQueue();
+                    }
+                }
+            }
+
+            function updateUI() {
+                playerLvSpan.textContent = player.lv;
+                playerHpSpan.textContent = player.hp;
+                playerMaxHpSpan.textContent = player.maxHp;
+                playerExpSpan.textContent = Math.max(0, player.nextExp - player.exp);
+                potionCountSpan.textContent = player.items.potion;
+                if (currentMonster) {
+                    monsterNameSpan.textContent = currentMonster.name;
+                    monsterHpSpan.textContent = monster.hp;
+                }
+            }
+            
+            function toggleCommands(disabled) {
+                attackBtn.disabled = disabled;
+                runBtn.disabled = disabled;
+                itemBtn.disabled = disabled || player.items.potion <= 0;
+            }
+            
+            function spawnNewMonster(isFirst = false) {
+                const randomBgYIndex = Math.floor(Math.random() * backgroundPositions.length);
+                backgroundLayer.style.backgroundPositionY = backgroundPositions[randomBgYIndex];
+
+                currentMonster = { ...monstersData[Math.floor(Math.random() * monstersData.length)] }; 
+                monster.hp = currentMonster.hp;
+                monster.maxHp = currentMonster.hp;
+                monster.attack = currentMonster.attack;
+                monsterElement.style.backgroundImage = `url('${currentMonster.image}')`;
+                monsterElement.style.backgroundPosition = currentMonster.pos;
+                monsterElement.classList.remove('fade-out');
+                
+                updateUI();
+                const message = isFirst ? `あ！ ${currentMonster.name}が あらわれた！` : `なんと！ ${currentMonster.name}が あらわれた！`;
+                typeMessage(message, () => startPlayerTurn());
+            }
+            
+            function checkLevelUp() {
+                if (player.exp >= player.nextExp) {
+                    player.lv++;
+                    const attackUp = Math.floor(Math.random() * 3) + 2;
+                    const hpUp = Math.floor(Math.random() * 8) + 5;
+                    player.attack += attackUp;
+                    player.maxHp += hpUp;
+                    player.hp = player.maxHp;
+                    player.exp -= player.nextExp;
+                    player.nextExp = Math.floor(player.nextExp * 1.5);
+
+                    messageQueue.push({text: `夢幻ysは レベル ${player.lv} に あがった！`});
+                    messageQueue.push({text: `こうげきが ${attackUp} あがった！`});
+                    messageQueue.push({text: `さいだいHPが ${hpUp} あがった！`, callback: updateUI});
+                }
+            }
+
+            // --- Animations & Effects ---
+            function showDamagePopup(damage, targetElement, isCritical = false) {
+                const popup = document.createElement('div');
+                popup.textContent = damage;
+                popup.className = 'damage-popup';
+                if (isCritical) {
+                    popup.classList.add('critical');
+                }
+                const targetRect = targetElement.getBoundingClientRect();
+                const containerRect = battleScreen.getBoundingClientRect();
+                popup.style.top = `${targetRect.top - containerRect.top + targetRect.height / 2}px`;
+                popup.style.left = `${targetRect.left - containerRect.left + targetRect.width / 2}px`;
+
+                battleScreen.appendChild(popup);
+                setTimeout(() => popup.remove(), isCritical ? 1500 : 1000);
+            }
+
+            function showAttackEffect(targetElement) {
+                attackEffectElement.style.backgroundPosition = attackEffects[Math.floor(Math.random() * attackEffects.length)];
+                const targetRect = targetElement.getBoundingClientRect();
+                const containerRect = battleScreen.getBoundingClientRect();
+                let topPos = targetRect.top - containerRect.top + targetRect.height / 2;
+                let leftPos = targetRect.left - containerRect.left + targetRect.width / 2;
+
+                if (targetElement.id === 'player-status' || targetElement.id === 'game-container') {
+                    topPos -= containerRect.height * 0.25;
+                    leftPos += containerRect.width * 0.1;
+                }
+                attackEffectElement.style.top = `${topPos}px`;
+                attackEffectElement.style.left = `${leftPos}px`;
+                attackEffectElement.classList.add('effect-active');
+                setTimeout(() => attackEffectElement.classList.remove('effect-active'), 600);
+            }
+            
+            // --- Battle Logic ---
+            function startPlayerTurn() {
+                if (isGameOver) return;
+                // Angel Event Check (10% chance if not full HP)
+                if (Math.random() < 0.1 && player.hp < player.maxHp) {
+                    toggleCommands(true);
+                    const healAmount = player.maxHp - player.hp;
+                    player.hp = player.maxHp;
+                    messageQueue.push({ text: '天からやさしい光が...' });
+                    messageQueue.push({ text: 'R天使があらわれ、キズをいやしてくれた！' });
+                    messageQueue.push({
+                        text: `HPが ${healAmount} かいふくした！`,
+                        callback: () => {
+                            updateUI();
+                            isPlayerTurn = true;
+                            toggleCommands(false);
+                        }
+                    });
+                    processMessageQueue();
+                    return;
+                }
+                isPlayerTurn = true;
+                toggleCommands(false);
+            }
+
+            function playerTurn(action) {
+                if (!isPlayerTurn || isGameOver) return;
+                isPlayerTurn = false;
+                toggleCommands(true);
+                action();
+            }
+
+            function monsterTurn() {
+                 typeMessage(`${currentMonster.name} の こうげき！`, () => {
+                    const playerStatusBox = document.getElementById('player-status');
+                    showAttackEffect(playerStatusBox);
+                    setTimeout(() => {
+                        const damage = Math.floor(Math.random() * monster.attack) + 5;
+                        player.hp = Math.max(0, player.hp - damage);
+                        updateUI();
+                        
+                        const gameContainer = document.getElementById('game-container');
+                        showDamagePopup(damage, gameContainer); 
+                        gameContainer.classList.add('shake-container-vertical');
+                        setTimeout(() => gameContainer.classList.remove('shake-container-vertical'), 500);
+
+                        typeMessage(`ゆうしゃは ${damage} のダメージを うけた！`, () => {
+                            if (player.hp <= 0) {
+                                playerDefeated();
+                            } else {
+                                startPlayerTurn();
+                            }
+                        });
+                    }, 600);
+                });
+            }
+
+            function monsterDefeated() {
+                toggleCommands(true);
+                messageQueue.push({text: `${currentMonster.name}を たおした！`});
+                messageQueue.push({text: `${currentMonster.exp} のけいけんちを かくとく！`, callback: () => {
+                    player.exp += currentMonster.exp;
+                    checkLevelUp();
+                }});
+                
+                if (Math.random() < currentMonster.itemDropChance) {
+                    messageQueue.push({ text: `なんと！かいふくやくを みつけた！`, callback: () => {
+                        player.items.potion++;
+                        updateUI();
+                    }});
+                }
+
+                messageQueue.push({callback: () => {
+                    monsterElement.classList.add('fade-out');
+                    battleScreen.classList.add('victory-flash');
+                    setTimeout(() => {
+                        battleScreen.classList.remove('victory-flash');
+                        spawnNewMonster(false);
+                    }, 1500);
+                }});
+                
+                processMessageQueue();
+            }
+            
+            function playerDefeated() {
+                isGameOver = true;
+                toggleCommands(true);
+                typeMessage('ゆうしゃは ちからつきた...');
+            }
+
+            // --- Event Listeners ---
+            attackBtn.addEventListener('click', () => playerTurn(() => {
+                const isCritical = Math.random() < 0.15; // 15% chance
+                const damageMultiplier = isCritical ? 2.0 : 1.0;
+                const damage = Math.floor((Math.floor(Math.random() * player.attack/2) + player.attack/2) * damageMultiplier);
+                
+                const attackMessage = isCritical ? 'かいしんの いちげき！' : 'ゆうしゃ の こうげき！';
+
+                typeMessage(attackMessage, () => {
+                    showAttackEffect(monsterElement);
+                    setTimeout(() => {
+                        monster.hp = Math.max(0, monster.hp - damage);
+                        updateUI();
+                        monsterElement.classList.add('shake');
+                        showDamagePopup(damage, monsterElement, isCritical);
+                        
+                        typeMessage(`${currentMonster.name}に ${damage} のダメージ！`, () => {
+                           setTimeout(() => monsterElement.classList.remove('shake'), 500);
+                            if (monster.hp <= 0) {
+                                monsterDefeated();
+                            } else {
+                                setTimeout(monsterTurn, 1000);
+                            }
+                        });
+                    }, 600);
+                });
+            }));
+            
+            itemBtn.addEventListener('click', () => playerTurn(() => {
+                 if (player.items.potion > 0) {
+                     player.items.potion--;
+                     const healAmount = 50;
+                     player.hp = Math.min(player.maxHp, player.hp + healAmount);
+                     updateUI();
+                     typeMessage(`ゆうしゃは かいふくやくを つかった！ HPが ${healAmount} かいふくした！`, () => {
+                         setTimeout(monsterTurn, 1000);
+                     });
+                 } else {
+                      typeMessage(`しかし なにも もっていなかった！`, () => {
+                         isPlayerTurn = true;
+                         toggleCommands(false);
+                     });
+                 }
+            }));
+
+            runBtn.addEventListener('click', () => playerTurn(() => {
+                 const escapeSuccess = Math.random() < 0.6; 
+                 if (escapeSuccess) {
+                     typeMessage('ゆうしゃは にげだした！', () => {
+                         monsterElement.classList.add('fade-out');
+                         setTimeout(() => spawnNewMonster(false), 1000);
+                     });
+                 } else {
+                     typeMessage('しかし まわりこまれてしまった！', () => setTimeout(monsterTurn, 1000));
+                 }
+            }));
+            
+            function startGame() {
+                updateUI();
+                spawnNewMonster(true);
+            }
+
+            startGame();
+        });
+    </script>
+
+</body>
+</html>
+
